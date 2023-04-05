@@ -3,7 +3,18 @@ from transformers import AutoTokenizer, AutoModel
 import asyncio
 import websockets
 import json
+import torch
 
+DEVICE = "cuda"
+DEVICE_ID = "0"
+CUDA_DEVICE = f"{DEVICE}:{DEVICE_ID}" if DEVICE_ID else DEVICE
+
+
+def torch_gc():
+    if torch.cuda.is_available():
+        with torch.cuda.device(CUDA_DEVICE):
+            torch.cuda.empty_cache()
+            torch.cuda.ipc_collect()
 
 path_or_name = "chatglm-6b-int4-qe"
 tokenizer = AutoTokenizer.from_pretrained(
@@ -31,8 +42,5 @@ async def handle(websocket, path):
         torch_gc()
         await websocket.send(json.dumps(answer))
 
-asyncio.get_event_loop_policy().get_event_loop().run_until_complete(
-    websockets.serve(handle, '0.0.0.0', 8765))
-
-# asyncio.get_event_loop().run_until_complete(websockets.serve(handle, '0.0.0.0', 8765))
-# asyncio.get_event_loop().run_forever()
+asyncio.get_event_loop_policy().get_event_loop().run_until_complete(websockets.serve(handle, '0.0.0.0', 8765))
+asyncio.get_event_loop().run_forever()
