@@ -64,16 +64,16 @@ async def handle_stream(websocket, path):
 
             await websocket.send(json.dumps(answer))
 
-            answer = {
-                "prompt": "",
-                "history": [],
-                "eof": True,
-            }
+        answer = {
+            "prompt": "",
+            "history": [],
+            "eof": True,
+        }
 
-            await websocket.send(json.dumps(answer))
+        await websocket.send(json.dumps(answer))
 
         torch_gc()
 
 asyncio.get_event_loop_policy().get_event_loop().run_until_complete(
-    websockets.serve(handle, '0.0.0.0', 8765))
+    websockets.serve(handle_stream, '0.0.0.0', 8765))
 asyncio.get_event_loop().run_forever()
