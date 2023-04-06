@@ -66,7 +66,7 @@ async def handle_stream(websocket, path):
 
         answer = {
             "prompt": "",
-            "history": [],
+            "history": history,
             "eof": True,
         }
 
