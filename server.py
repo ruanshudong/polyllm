@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from transformers import AutoTokenizer, AutoModel
+from transformers import AutoTokenizer, AutoModel, AutoConfig
 import asyncio
 import websockets
 import json
@@ -44,9 +44,9 @@ args = parse_args()
 
 os.environ["CUDA_VISIBLE_DEVICES"] = args.cuda
 
-# DEVICE = "cuda"
-# DEVICE_ID = "0"
-# CUDA_DEVICE = f"{DEVICE}:{DEVICE_ID}" if DEVICE_ID else DEVICE
+#DEVICE = "cuda"
+#DEVICE_ID = "0"
+#CUDA_DEVICE = f"{DEVICE}:{DEVICE_ID}" if DEVICE_ID else DEVICE
 
 
 def torch_gc():
@@ -62,7 +62,7 @@ config = AutoConfig.from_pretrained(
     "models", trust_remote_code=True, pre_seq_len=128)
 model = AutoModel.from_pretrained(
     "models", config=config, trust_remote_code=True)
-prefix_state_dict = torch.load(os.path.join(args.path, "pytorch_model.bin"))
+prefix_state_dict = torch.load(os.path.join(args.model, "pytorch_model.bin"))
 new_prefix_state_dict = {}
 for k, v in prefix_state_dict.items():
     if k.startswith("transformer.prefix_encoder."):
@@ -92,7 +92,7 @@ async def handle(websocket, path):
             "history": history,
             "eof": True,
         }
-        torch_gc()
+        #torch_gc()
         await websocket.send(json.dumps(answer))
 
 
@@ -124,7 +124,7 @@ async def handle_stream(websocket, path):
 
         await websocket.send(json.dumps(answer))
 
-        torch_gc()
+        #torch_gc()
 
 asyncio.get_event_loop_policy().get_event_loop().run_until_complete(
     websockets.serve(handle_stream, args.host, args.port))
