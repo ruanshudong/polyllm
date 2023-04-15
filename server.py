@@ -90,6 +90,7 @@ async def handle(websocket, path):
         answer = {
             "prompt": response,
             "history": history,
+            "eof": True,
         }
         torch_gc()
         await websocket.send(json.dumps(answer))
@@ -126,5 +127,5 @@ async def handle_stream(websocket, path):
         torch_gc()
 
 asyncio.get_event_loop_policy().get_event_loop().run_until_complete(
-    websockets.serve(handle, args.host, args.port))
+    websockets.serve(handle_stream, args.host, args.port))
 asyncio.get_event_loop().run_forever()
