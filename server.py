@@ -4,10 +4,49 @@ import asyncio
 import websockets
 import json
 import torch
+import argparse
+import os
 
-DEVICE = "cuda"
-DEVICE_ID = "0"
-CUDA_DEVICE = f"{DEVICE}:{DEVICE_ID}" if DEVICE_ID else DEVICE
+
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--host",
+        type=str,
+        nargs="+",
+        default=("0.0.0.0"),
+        help="server host",
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=8080,
+        help="server port",
+    )
+    parser.add_argument(
+        "--model",
+        type=str,
+        required=True,
+        help="model path",
+    )
+    parser.add_argument(
+        "--cuda",
+        type=str,
+        default="0",
+        help="cuda device",
+    )
+    args = parser.parse_args()
+
+    return args
+
+
+args = parse_args()
+
+os.environ["CUDA_VISIBLE_DEVICES"] = args.cuda
+
+# DEVICE = "cuda"
+# DEVICE_ID = "0"
+# CUDA_DEVICE = f"{DEVICE}:{DEVICE_ID}" if DEVICE_ID else DEVICE
 
 
 def torch_gc():
@@ -17,11 +56,23 @@ def torch_gc():
             torch.cuda.ipc_collect()
 
 
-path_or_name = "chatglm-6b-int4-qe"
-tokenizer = AutoTokenizer.from_pretrained(
-    path_or_name, trust_remote_code=True)
+# 载入Tokenizer
+tokenizer = AutoTokenizer.from_pretrained("models", trust_remote_code=True)
+config = AutoConfig.from_pretrained(
+    "models", trust_remote_code=True, pre_seq_len=128)
 model = AutoModel.from_pretrained(
-    path_or_name, trust_remote_code=True).half().cuda()
+    "models", config=config, trust_remote_code=True)
+prefix_state_dict = torch.load(os.path.join(args.path, "pytorch_model.bin"))
+new_prefix_state_dict = {}
+for k, v in prefix_state_dict.items():
+    if k.startswith("transformer.prefix_encoder."):
+        new_prefix_state_dict[k[len("transformer.prefix_encoder."):]] = v
+        model.transformer.prefix_encoder.load_state_dict(
+            new_prefix_state_dict)
+
+model = model.quantize(4)
+model = model.half().cuda()
+model.transformer.prefix_encoder.float()
 model.eval()
 
 
@@ -75,5 +126,5 @@ async def handle_stream(websocket, path):
         torch_gc()
 
 asyncio.get_event_loop_policy().get_event_loop().run_until_complete(
-    websockets.serve(handle_stream, '0.0.0.0', 8765))
+    websockets.serve(handle, args.host, args.port))
 asyncio.get_event_loop().run_forever()
